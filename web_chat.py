@@ -29,7 +29,10 @@ def ws(nick):
             print(msg)
             to_user_socket = user_socket_dict.get(msg.get("to_user"))
             msg_json = json.dumps(msg)  # 序列化消息
-            to_user_socket.send(msg_json)  # 发送消息
+            if to_user_socket:
+                to_user_socket.send(msg_json)  # 发送消息
+            elif msg.get("type") == 'group':
+                [sock.send(msg_json) for sock in user_socket_dict.values()]
         except KeyError:
             user_socket_dict.pop(to_user_socket)
             print(nick, '...')
