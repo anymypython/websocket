@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+
+	<head>
+		<meta charset="UTF-8" />
+		<title>Document</title>
+		<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no" />
+		<link rel="stylesheet" type="text/css" href="css/mui.css" />
+		<link rel="stylesheet" type="text/css" href="css/chat.css" />
+	</head>
+
+	<body>
+		<header class="mui-bar mui-bar-nav">
+			<h1 class="mui-title">给在线所有人员发送消息</h1> <button class="mui-pull-right" onclick="galleryImg()">选择图片</button>
+		</header>
+
+		<div class="mui-content">
+
+		</div>
+		<div class="mui-row">
+			<ul class="mui-table-view" id="chat_list">
+
+			</ul>
+		</div>
+		<nav class="mui-bar mui-bar-tab">
+			<a class="mui-tab-item mui-active" id="talk">
+				<span class="mui-icon mui-icon-speech"></span>
+				<span class="mui-tab-label">按住说点什么</span>
+			</a>
+
+		</nav>
+
+		<script src="js/mui.js" type="text/javascript" charset="utf-8"></script>
+		<script type="text/javascript">
+			mui.init({
+				gestureConfig: {
+					tap: true, //默认为true
+					doubletap: false, //默认为false
+					longtap: false, //默认为false
+					swipe: true, //默认为true
+					drag: true, //默认为true
+					hold: true, //默认为false，不监听
+					release: true //默认为false，不监听
+				}
+			})
+			var reco = null;
+			var Sdata = null;
+			var r = null;
+			mui.plusReady(function() {
+				function selimg() {
+					plus.gallery.pick(successCB, null, {
+						filename: '_doc/gallery/avatar',
+						maximum: 1,
+						multiple: false,
+						animation: false,
+					})
+				}
+				r = selimg
+				Sdata = plus.webview.currentWebview(); //接受窗口数据				
+				reco = plus.audio.getRecorder(); //准备录音
+				mui.post(window.serv + "/chat_list", {
+					user_id: 'group'
+				}, function(data) {
+					console.log(JSON.stringify(data));
+					//请求数据成功后创建聊天记录
+					for(var i = 0; i < data.data.length; i++) {
+						if(data.data[i].msg_type == 'image') {
+							console.log('image')
+							create_img(data.data[i])
+						} else if(data.data[i].from_user == window.localStorage.getItem("user_id")) {
+							console.log(window.localStorage.getItem("user_id"))
+							data.data[i].local = true
+							create_chat("self", data.data[i])
+						} else(
+							create_chat(null, data.data[i])
+						)
+
+					}
+
+				}, "json")
+			});
+			//录音;
+			function galleryImg() {
+				r()
+			}
+
+			function successCB(GallerySaveEvent, event) {
+				console.log(GallerySaveEvent)
+				upload_img(GallerySaveEvent)
+			}
+			document.getElementById('talk').addEventListener('hold', function() {
+				console.log("开始录音")
+				reco.record({
+					"filename": "_doc/audio/",
+					"format": "amr"
+				}, function(reco_file_path) {
+					upload_fun(reco_file_path);
+				})
+			});
+			document.getElementById('talk').addEventListener('release', function() {
+				console.log("停止录音");
+				reco.stop()
+			});
+
+			function upload_img(file_path) {
+				var upload_task = plus.uploader.createUpload(window.up_img, {
+					method: "POST"
+				}, function(upload_obj, status) {
+					console.log(upload_obj.responseText);
+					console.log(JSON.stringify(status));
+					img_name = JSON.parse(upload_obj.responseText).data.filename;
+					console.log(img_name)
+					send_msg = {
+						"type": "group",
+						"to_user": null,
+						"message": img_name,
+						"from_user": window.localStorage.getItem("user_id"),
+						'msg_type': 'image'
+					};
+					//一个应用只允许一个websocket长连接, index引入
+					var index = plus.webview.getWebviewById("HBuilder")
+					//向index页传递send_chat事件
+					mui.fire(index, "send_chat", send_msg)
+
+				});
+				upload_task.addData("from_user", window.localStorage.getItem("user_id"));
+				upload_task.addData('msg_type', 'image');
+				upload_task.addData('type', 'group');
+				upload_task.addFile(file_path, {
+					key: "reco"
+				});
+				upload_task.start();
+			};
+			//上传录音
+			function upload_fun(file_path) {
+				var upload_task = plus.uploader.createUpload(window.serv + "/up_app_record", {
+					method: "POST"
+				}, function(upload_obj, status) {
+					console.log(upload_obj.responseText);
+					console.log(JSON.stringify(status));
+					res = JSON.parse(upload_obj.responseText)
+					//准备给好友发送录音消息
+					send_msg = {
+						"type": "group",
+						"to_user": null,
+						"message": res.data.filename,
+						"from_user": window.localStorage.getItem("user_id"),
+						'msg_type': 'audio'
+					};
+					//一个应用只允许一个websocket长连接, index引入
+					var index = plus.webview.getWebviewById("HBuilder")
+					//向index页传递send_chat事件
+					mui.fire(index, "send_chat", send_msg)
+
+				});
+				upload_task.addData("from_user", window.localStorage.getItem("user_id"));
+				upload_task.addData('msg_type', 'audio');
+				upload_task.addData('type', 'group');
+				upload_task.addFile(file_path, {
+					key: "reco"
+				});
+				upload_task.start();
+			};
+
+			function create_img(data) {
+				var divTag = document.createElement("div"); // 单条信息载体体	
+				var spanTag = document.createElement("span"); //		
+				var imgTag = document.createElement("img");
+				var img_msg = document.createElement("img");
+				img_msg.src = window.chat_img + data.message
+				imgTag.src = "avatar/avatar.jpg";
+				divTag.appendChild(spanTag);
+				spanTag.appendChild(imgTag);
+				divTag.appendChild(img_msg)
+				document.getElementById("chat_list").appendChild(divTag)
+
+			}
+			//创建聊天信息: 对方左对齐, 自己右对齐
+			function create_chat(self, data) {
+				//self:指定消息源, 对方|自己
+				//data:消息记录
+				var divTag = document.createElement("div"); // 单条信息载体体
+				var spanTag = document.createElement("span"); //
+				var imgTag = document.createElement("img");
+				var divsTag = document.createElement("div");
+				divTag.onclick = function() {
+					//点击播放聊天语音
+					if(data.local) {
+						//本地语音
+						console.log("_doc/audio/" + data.message.slice(0, -4))
+						var player = plus.audio.createPlayer("_doc/audio/" + data.message.slice(0, -4));
+						player.play();
+						console.log(player)
+					} else { //网络文件
+						console.log("src")
+						console.log(JSON.stringify(data))
+						var player = plus.audio.createPlayer(window.serv + "/get_chat/" + data.message);
+						player.play();
+					}
+				};
+				//显示css样式类  , 好友发送给欸自己的消息靠左
+				var leftd = "leftd";
+				var leftd_h = "leftd_h";
+				var left_speech = "left speech";
+				if(self) {
+					//用户自己发的消息靠右
+					leftd = "rightd";
+					leftd_h = "rightd_h";
+					left_speech = "right speech";
+				};
+				divTag.className = leftd;
+				spanTag.className = leftd_h;
+
+				divsTag.innerText = "点击播放";
+				divsTag.className = left_speech
+
+				divTag.appendChild(spanTag);
+				spanTag.appendChild(imgTag);
+				divTag.appendChild(divsTag)
+				document.getElementById("chat_list").appendChild(divTag)
+			}
+			//监听websocket传递的消息
+			document.addEventListener("group_msg", function(event) {
+				var msg = event.detail
+				console.log(JSON.stringify(msg))
+				console.log(JSON.stringify(Sdata))
+				if(msg.to_user == Sdata.friend_id) {
+					create_chat("", msg)
+				}
+			})
+		</script>
+	</body>
+
+</html>

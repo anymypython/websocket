@@ -12,12 +12,16 @@ user_socket_dict = {}
 
 @app.route("/ws/<nick>")
 def ws(nick):
+    # 用户连接
     user_socket = request.environ.get("wsgi.websocket")  # type: WebSocket
+    # 正确的用户连接
     if user_socket:
-        friend_json = json.dumps({"type": 'friend', 'data': list(user_socket_dict.keys())})
+        # 用户上线, 准备数据
+        friend_json = json.dumps({"type": 'friend_list', 'data': list(user_socket_dict.keys())})
         print(friend_json)
         MDB.online.insert_one({"nick": nick})
         user_socket_dict[nick] = user_socket
+        # 将在线人数发送给用户
         user_socket.send(json.dumps({"type": 'system', "count": len(user_socket_dict)}))
         user_socket.send(friend_json)
 
@@ -30,8 +34,10 @@ def ws(nick):
             to_user_socket = user_socket_dict.get(msg.get("to_user"))
             msg_json = json.dumps(msg)  # 序列化消息
             if to_user_socket:
+
                 to_user_socket.send(msg_json)  # 发送消息
             elif msg.get("type") == 'group':
+                # 群消息
                 [sock.send(msg_json) for sock in user_socket_dict.values()]
         except KeyError:
             user_socket_dict.pop(to_user_socket)

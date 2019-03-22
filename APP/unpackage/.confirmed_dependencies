@@ -1,0 +1,31 @@
+{
+	"index.html": {
+		"resources": [
+			"friend.html"
+		],
+		"refer": [
+			"friend.html",
+			"login.html",
+			"group.html",
+			"chat.html"
+		]
+	},
+	"login.html": {
+		"refer": [
+			"reg.html",
+			"friend.html"
+		]
+	},
+	"reg.html": {
+		"refer": [
+			"login.html",
+			"reg.html",
+			"image.html"
+		]
+	},
+	"friend.html": {
+		"refer": [
+			"chat.html"
+		]
+	}
+}

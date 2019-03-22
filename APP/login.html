@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+
+	<head>
+		<meta charset="UTF-8" />
+		<title>Document</title>
+		<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no" />
+		<link rel="stylesheet" type="text/css" href="css/mui.css" />
+	</head>
+
+	<body>
+		<header class="mui-bar mui-bar-nav">
+			<h1 class="mui-title">用户登陆 </h1>
+		</header>
+		<div class="mui-content">
+			<form class="mui-input-group">
+				<div class="mui-input-row">
+					<label>用户名</label>
+					<input type="text" id="username" class="mui-input-clear" placeholder="请输入用户名">
+				</div>
+				<div class="mui-input-row">
+					<label>密码</label>
+					<input type="password" id="password" class="mui-input-password" placeholder="请输入密码">
+				</div>
+				<div class="mui-button-row">
+					<button type="button" class="mui-btn mui-btn-primary" id="login_btn">登陆</button>
+					<button type="button" class="mui-btn mui-btn-danger" id="reg_btn">注册</button>
+				</div>
+			</form>
+		</div>
+
+		<script src="js/mui.js " type="text/javascript " charset="utf-8 "></script>
+		<script src="js/common.js " type="text/javascript " charset="utf-8 "></script>
+		<script src="js/md5.js" type="text/javascript " charset="utf-8 "></script>
+		<script type="text/javascript ">
+			mui.init()
+			document.getElementById("login_btn").addEventListener("tap", function() {
+				mui.toast('正在登陆')
+				var username = document.getElementById("username").value
+				var password = document.getElementById("password").value
+				mui.post(window.serv + '/login', {
+					'username': username,
+					'password': password
+				}, function(data) {
+					console.log(data.code);
+					console.log(JSON.stringify(data));
+					if(data.code == 0) {
+						console.log(JSON.stringify(data));
+						window.localStorage.setItem("user_id", data.data._id);
+						mui.openWindow({
+							url: 'friend.html',
+							id: 'friend.html',
+							styles: {
+								top: "0px",
+								bottom: "50px"
+							},
+							createNew: true
+						})
+					} else {
+						mui.toast(data.msg)
+					}
+				}, 'json')
+			})
+			document.getElementById('reg_btn').addEventListener('tap', function() {
+				mui.openWindow({
+					url: "reg.html",
+					id: "reg.html",
+					createNew: true
+
+				})
+			})
+		</script>
+	</body>
+
+</html>

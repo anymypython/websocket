@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+
+	<head>
+		<meta charset="UTF-8" />
+		<title>Document</title>
+		<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no" />
+		<link rel="stylesheet" type="text/css" href="css/mui.css" />
+		<link rel="stylesheet" type="text/css" href="css/chat.css" />
+	</head>
+
+	<body>
+		<header class="mui-bar mui-bar-nav">
+			<a class="mui-action-back mui-icon mui-icon-left-nav mui-pull-left"></a>
+			<h1 class="mui-title" id="title">xxxx对话中</h1><button class="mui-pull-right" onclick="galleryImg()">选择图片</button>
+		</header>
+		<div class="mui-content" id="chat_list">
+			<div class="leftd">
+				<span class="leftd_h">
+        		<img src="avatar/baba.jpg" />
+        	</span>
+				<div class="left speech">
+					123123123123
+				</div>
+			</div>
+			<div class="rightd">
+				<span class="rightd_h">
+        		<img src="avatar/baba.jpg" />
+        	</span>
+				<div class="right speech">
+					123123123123
+				</div>
+			</div>
+		</div>
+		<nav class="mui-bar mui-bar-tab">
+			<a class="mui-tab-item mui-active" id="talk">
+				<span class="mui-icon mui-icon-speech"></span>
+				<span class="mui-tab-label">按住说点什么</span>
+			</a>
+		</nav>
+		<script src="js/mui.js" type="text/javascript" charset="utf-8"></script>
+		<script type="text/javascript">
+			mui.init({
+				gestureConfig: {
+					hold: true, //默认为false，不监听
+					release: true //默认为false，不监听
+				}
+			});
+
+			var reco = null;
+			var Sdata = null;
+			var r = null;
+			mui.plusReady(function() {
+				function selimg() {
+					plus.gallery.pick(successCB, null, {
+						filename: '_doc/gallery/avatar',
+						maximum: 1,
+						multiple: false,
+						animation: false,
+					})
+				}
+				r = selimg
+				Sdata = plus.webview.currentWebview();
+				console.log(JSON.stringify(Sdata))
+				document.getElementById("title").innerText = Sdata.friend_id;
+				reco = plus.audio.getRecorder(); // 获取录音对象
+				mui.post(window.serv + '/chat_list', {
+					to_user: window.localStorage.getItem("user_id"),
+					from_user: Sdata.friend_id,
+				}, function(data) {
+					console.log(JSON.stringify(data));
+					for(var i = 0; i < data.data.length; i++) {
+						if(data.data[i].msg_type == 'image') {
+							console.log('image')
+							create_img(data.data[i])
+						} else if(data.data[i].from_user == window.localStorage.getItem("user_id")) {
+							create_chat("self", data.data[i]);
+						} else {
+							create_chat(null, data.data[i]);
+						}
+
+					}
+				}, 'json');
+			});
+
+			function create_img(data) {
+				var divTag = document.createElement("div"); // 单条信息载体体	
+				var spanTag = document.createElement("span"); //		
+				var imgTag = document.createElement("img");
+				var img_msg = document.createElement("img");
+				img_msg.src = window.chat_img + data.message
+				imgTag.src = "avatar/avatar.jpg";
+				divTag.appendChild(spanTag);
+				spanTag.appendChild(imgTag);
+				divTag.appendChild(img_msg)
+				document.getElementById("chat_list").appendChild(divTag)
+
+			}
+
+			function galleryImg() {
+				r()
+			}
+
+			function successCB(GallerySaveEvent, event) {
+				console.log(GallerySaveEvent)
+				upload_img(GallerySaveEvent)
+			}
+
+			function upload_img(file_path) {
+				var upload_task = plus.uploader.createUpload(window.up_img, {
+					method: "POST"
+				}, function(upload_obj, status) {
+					console.log(upload_obj.responseText);
+					console.log(JSON.stringify(status));
+					img_name = JSON.parse(upload_obj.responseText).data.filename;
+					console.log(img_name)
+					send_msg = {
+						"type": "friend",
+						"to_user": Sdata.friend_id,
+						"message": img_name,
+						"from_user": window.localStorage.getItem("user_id"),
+						'msg_type': 'image'
+					};
+					//一个应用只允许一个websocket长连接, index引入
+					var index = plus.webview.getWebviewById("HBuilder")
+					//向index页传递send_chat事件
+					mui.fire(index, "send_chat", send_msg)
+
+				});
+				upload_task.addData("from_user", window.localStorage.getItem("user_id"));
+				upload_task.addData('msg_type', 'image');
+				upload_task.addData('type', 'group');
+				upload_task.addData("to_user", Sdata.friend_id);
+				upload_task.addFile(file_path, {
+					key: "reco"
+				});
+				upload_task.start();
+			};
+
+			// 开始录音
+			document.getElementById('talk').addEventListener('hold', function() {
+				reco.record({
+					"filename": "_doc/audio/", //默认名称为 时间戳.amr
+					"format": "amr"
+				}, function(reco_file_path) {
+					// reco_file_path 录音文件的完整路径
+					upload_anything(reco_file_path);
+				}) // 开始录音
+				// 参数一 ： 创建录音文件的属性
+				// 参数二 ：成功的回调函数
+			});
+			// 停止录音 - 完成录音
+			document.getElementById('talk').addEventListener('release', function() {
+				reco.stop(); // 遇到stop 开始执行 成功的回调函数
+			});
+
+			// 上传录音任务
+			function upload_anything(reco_file_path) {
+				var upload_task = plus.uploader.createUpload(
+					window.serv + "/up_app_record", {
+						"method": "POST"
+					}, // 有目标指向性的函数 参数一为 目的地址 
+					function(upload, status) {
+						if(status == 200) {
+							console.log(upload.responseText);
+							//反序列化 字符串 
+							res = JSON.parse(upload.responseText);
+
+							// 拼凑消息字符串
+							send_str = {
+								"to_user": Sdata.friend_id,
+								"message": res.data.filename,
+								"from_user": window.localStorage.getItem("user_id"),
+								"type": "friend",
+								'msg_type': 'audio'
+							}
+
+							// 获取 index 的Obj
+							var index = plus.webview.getWebviewById("HBuilder");
+
+							// 向index页传递send_chat事件
+							mui.fire(index, 'send_chat', send_str);
+
+							create_chat("w", {
+								"message": reco_file_path,
+								"local": true
+							});
+						}
+					}
+				);
+
+				//2. from_user to_user
+				upload_task.addData("from_user", window.localStorage.getItem("user_id"));
+				upload_task.addData("to_user", Sdata.friend_id);
+				upload_task.addData('msg_type', 'audio');
+				upload_task.addData('type', 'friend');
+
+				upload_task.addFile(reco_file_path, {
+					"key": "reco"
+				});
+				upload_task.start();
+			}
+
+			function create_chat(self, data) {
+				var div = document.createElement("div");
+				var span = document.createElement("span");
+				var img = document.createElement("img");
+				var div2 = document.createElement("div");
+
+				div.onclick = function() {
+					//console.log("点击播放聊天文件"+data.message)
+					if(data.local) {
+						var player = plus.audio.createPlayer(data.message);
+						player.play();
+					} else {
+						var player = plus.audio.createPlayer(window.serv_chat + data.message);
+						player.play();
+					}
+
+				}
+
+				var leftd = "leftd";
+				var leftd_h = "leftd_h";
+				var left_speech = "left speech";
+
+				if(self) {
+					leftd = "rightd";
+					leftd_h = "rightd_h";
+					left_speech = "right speech";
+				}
+
+				div.className = leftd;
+				span.className = leftd_h;
+				img.src = "avatar/baba.jpg";
+				div2.className = left_speech;
+				div2.innerText = "点击播放";
+
+				div.appendChild(span);
+				span.appendChild(img);
+				div.appendChild(div2);
+
+				document.getElementById("chat_list").appendChild(div);
+			};
+			document.addEventListener("new_message", function(event) {
+				var message = event.detail;
+				console.log(JSON.stringify(message));				
+				if(message.to_user == Sdata.friend_id) {
+					if(message.msg_type == 'image') {
+						create_img(message)
+					} else {
+						create_chat("", message);
+					}
+				}
+			})
+		</script>
+	</body>
+
+</html>

@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+
+	<head>
+		<meta charset="UTF-8" />
+		<title>Document</title>
+		<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no" />
+		<link rel="stylesheet" type="text/css" href="css/mui.css" />
+	</head>
+
+	<body>
+		<header class="mui-bar mui-bar-nav">
+			<a class="mui-action-back mui-icon mui-icon-left-nav mui-pull-left"></a>
+			<h1 class="mui-title">欢迎来到聊天室</h1>
+		</header>
+		<div class="mui-content">
+			<form class="mui-input-group">
+
+				<div class="mui-input-row">
+					<label>头像</label>
+					<button onclick="galleryImg()">选择图片</button>
+				</div>
+				<div class="mui-input-row">
+					<label>用户名</label>
+					<input type="text" id="username" class="mui-input-clear" placeholder="请输入用户名">
+				</div>
+				<div class="mui-input-row">
+					<label>密码</label>
+					<input type="password" id="password" class="mui-input-password" placeholder="请输入密码">
+				</div>
+				<div class="mui-input-row">
+					<label>确认密码</label>
+					<input type="password" id="repassword" class="mui-input-password" placeholder="请输入确认密码">
+				</div>
+				<div class="mui-button-row">
+
+					<button type="button" class="mui-btn mui-btn-danger" mui-action-back>取消</button>
+					<button type="button" class="mui-btn mui-btn-danger" id="reg_btn">注册</button>
+
+				</div>
+			</form>
+		</div>
+
+		</div>
+		<script src="js/mui.js" type="text/javascript" charset="utf-8"></script>
+		<script src="js/md5.js" type="text/javascript" charset="utf-8"></script>
+		<script type="text/javascript">
+			mui.init();
+			var img_name = null;
+			var r = null;
+
+			mui.plusReady(function() {
+				function selimg() {
+					plus.gallery.pick(successCB, null, {
+						filename: '_doc/gallery/avatar',
+						maximum: 1,
+						multiple: false,
+						animation: false,
+					})
+				}
+				r = selimg
+			})
+
+			function successCB(GallerySaveEvent, event) {
+				console.log(GallerySaveEvent)
+				upload_fun(GallerySaveEvent)
+			}
+
+			function galleryImg() {
+				r()
+			}
+
+			function upload_fun(file_path) {
+				var upload_task = plus.uploader.createUpload(window.serv + "/avatar", {
+					method: "POST"
+				}, function(upload_obj, status) {
+					console.log(upload_obj.responseText);
+					console.log(JSON.stringify(status));
+					img_name = JSON.parse(upload_obj.responseText).fileName
+
+				});
+				upload_task.addFile(file_path, {
+					key: "reco"
+				});
+				upload_task.start();
+			};
+
+			document.getElementById('reg_btn').addEventListener('tap', function() {
+				var passwor = document.getElementById("password").value;
+				var repassword = document.getElementById("repassword").value;
+				var username = document.getElementById("username").value;
+				if(passwor != repassword) {
+					mui.toast("两次密码不一致!")
+					return
+				};
+
+				console.log(img_name)
+				mui.post(window.serv + "/reg", {
+						"password": passwor,
+						"username": username,
+						"avarat": img_name
+					},
+					function(data) {
+						console.log(JSON.stringify(data))
+						if(data.code == 0) {
+							mui.toast("注册成功");
+							mui.openWindow({
+								url: "login.html",
+								id: "login.html",
+								styles: {
+									top: "0px",
+									bottom: "50px"
+								},
+								createNew: true
+							})
+						}
+					}, 'json')
+
+			})
+		</script>
+	</body>
+
+</html>

@@ -10,3 +10,4 @@ RDB = Redis(8)
 AVATAR = 'avatar'
 
 CHATPATH = 'chat'
+CHATIMG = 'chatimg'

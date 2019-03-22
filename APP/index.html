@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+
+	<head>
+		<meta charset="UTF-8" />
+		<title>Document</title>
+		<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no" />
+		<link rel="stylesheet" type="text/css" href="css/mui.css" />
+	</head>
+
+	<body>
+		<header class="mui-bar mui-bar-nav">
+			<h1 class="mui-title">好友</h1>
+		</header>
+		<div class="mui-content">
+			<ul class="mui-table-view" id="friend_list">
+				<li class="mui-table-view-cell mui-media">
+					<a href="javascript:;">
+						<div class="mui-media-body">
+							在线人数: <span id="count">?</span>
+						</div>
+					</a>
+				</li>
+
+			</ul>
+		</div>
+		<nav class="mui-bar mui-bar-tab">
+
+			<a class="mui-tab-item" id="friend">
+				<span class="mui-icon mui-icon-phone"></span>
+				<span class="mui-tab-label">好友</span>
+			</a>
+			<a class="mui-tab-item" id="group">
+				<span class="mui-icon mui-icon-email"></span>
+				<span class="mui-tab-label">群聊</span>
+			</a>
+			<a class="mui-tab-item" id='my'>
+				<span class="mui-icon mui-icon-gear"></span>
+				<span class="mui-tab-label">个人中心</span>
+			</a>
+		</nav>
+		<script src="js/mui.js" type="text/javascript" charset="utf-8"></script>
+		<script type="text/javascript">
+			mui.init()
+			mui.back = function() {};
+
+			function create_ws() {
+				ws = new WebSocket(window.ws_serv + window.localStorage.getItem("user_id"));
+				ws.onmessage = function(messageEvent) {
+					var msg_obj = JSON.parse(messageEvent.data); //{'form_user': '5c822c64d3620ea151bf72e5', 'to_user': '5c81de99d3620e283c6ff834', 'message': '28e68458-25ce-4f73-893d-f30b7d46e5d7.wav'}
+					console.log(JSON.stringify(msg_obj))
+					if(msg_obj.type == "system") {
+						document.getElementById('count').innerText = msg_obj.count
+					} else if(msg_obj.type == 'friend') {
+						var friend_chat = plus.webview.getWebviewById("chat.html");
+						mui.fire(friend_chat, "new_message", msg_obj);
+						console.log(JSON.stringify(msg_obj));
+					} else if(msg_obj.type == 'leave') {
+						document.getElementById('count').innerText = msg_obj.count
+						console.log(msg_obj.user)
+					} else if(msg_obj.type == 'group') {
+						var group_chat = plus.webview.getWebviewById("group.html")
+						mui.fire(group_chat, "group_msg", msg_obj)
+						console.log("recv_msg")
+					} else if(msg_obj.type == 'friend_list') {
+						for(var i = 0; i < msg_obj.data.length; i++) {
+							create_view(msg_obj.data[i])
+						}
+					}
+
+				};
+				ws.onclose = function() {
+					create_ws();
+				}
+			};
+
+			if(window.localStorage.getItem("user_id")) {
+				console.log(window.localStorage.getItem("user_id"))
+				create_ws()
+			}
+
+			document.getElementById('friend').addEventListener('tap', function() {
+				mui.openWindow({
+					url: 'index.html',
+					id: 'index.html',
+					//					createNew: true
+				})
+			})
+			document.getElementById('group').addEventListener('tap', function() {
+				mui.openWindow({
+					url: 'group.html',
+					id: 'group.html',
+					createNew: true
+
+				})
+			})
+			document.getElementById('my').addEventListener('tap', function() {
+				mui.openWindow({
+					url: 'login.html',
+					id: 'login.html',
+					styles: {
+						top: '0px',
+						bottom: '50px'
+					},
+					createNew: true
+
+				})
+			})
+			console.log(window.localStorage.getItem('user_id'))
+
+			function create_view(data) {
+				var litag = document.createElement("li")
+				litag.className = "mui-table-view-cell mui-media"
+				var atag = document.createElement("a")
+				atag.onclick = function() {
+					console.log(data);
+					mui.openWindow({
+						url: 'chat.html',
+						id: 'chat.html',
+						extras: {
+							"friend_id": data
+						}
+					})
+				}
+				var imgtag = document.createElement("img")
+				imgtag.className = "mui-media-object mui-pull-left"
+				imgtag.src = './avatar/avatar.jpg'
+				var divtag = document.createElement("div")
+				divtag.className = "mui-media-body"
+				divtag.innerText = data
+				atag.appendChild(imgtag)
+				atag.appendChild(divtag)
+				litag.appendChild(atag)
+				document.getElementById("friend_list").appendChild(litag)
+			}
+
+			document.addEventListener("send_chat", function(event) {
+				console.log(JSON.stringify(event.detail));
+				ws.send(JSON.stringify(event.detail))
+			});
+		</script>
+	</body>
+
+</html>
