@@ -5,5 +5,5 @@ class Ret(object):
         self.data = {}
 
     @property
-    def res(self):
+    def dict(self):
         return self.__dict__

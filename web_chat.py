@@ -13,8 +13,14 @@ user_socket_dict = {}
 @app.route("/ws/<nick>")
 def ws(nick):
     user_socket = request.environ.get("wsgi.websocket")  # type: WebSocket
-    MDB.online.insert_one({"nick": nick})
-    user_socket_dict[nick] = user_socket
+    if user_socket:
+        friend_json = json.dumps({"type": 'friend', 'data': list(user_socket_dict.keys())})
+        print(friend_json)
+        MDB.online.insert_one({"nick": nick})
+        user_socket_dict[nick] = user_socket
+        user_socket.send(json.dumps({"type": 'system', "count": len(user_socket_dict)}))
+        user_socket.send(friend_json)
+
     print(user_socket_dict)
     while 1:
         try:
@@ -26,11 +32,15 @@ def ws(nick):
             to_user_socket.send(msg_json)  # 发送消息
         except KeyError:
             user_socket_dict.pop(to_user_socket)
-            return jsonify({'key': "value"})
+            print(nick, '...')
+            return
         except TypeError:
+            print(nick)
+            [i.send({"type": "leave", "friend_id": nick, "count": len(user_socket_dict)}) for i in
+             user_socket_dict.values()]
             return jsonify({})
 
 
 if __name__ == '__main__':
-    http_server = WSGIServer(("0.0.0.0", 9999), application=app, handler_class=WebSocketHandler)
+    http_server = WSGIServer(("0.0.0.0", 9998), application=app, handler_class=WebSocketHandler)
     http_server.serve_forever()
